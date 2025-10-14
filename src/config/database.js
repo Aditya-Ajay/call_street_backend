@@ -15,24 +15,27 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Create connection pool
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+// Priority: Use DATABASE_URL if available, otherwise use individual variables
+const poolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    }
+  : {
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT, 10),
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    };
 
+const pool = new Pool({
+  ...poolConfig,
   // Pool configuration
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection cannot be established
-
-  // Additional settings for production
-  ...(process.env.NODE_ENV === 'production' && {
-    ssl: {
-      rejectUnauthorized: false // For managed databases like AWS RDS
-    }
-  })
+  connectionTimeoutMillis: 10000, // Return error after 10 seconds if connection cannot be established
 });
 
 // Test database connection on startup
