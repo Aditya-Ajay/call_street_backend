@@ -69,15 +69,34 @@ app.use(helmet({
 }));
 
 // CORS configuration
-app.use(cors({
-  origin: config.frontend.url,
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      config.frontend.url,
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://call-street-frontend.vercel.app'
+    ].filter(Boolean); // Remove any undefined values
+
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true, // CRITICAL: Allows cookies to be sent with requests
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'], // Allow frontend to read Set-Cookie header
   preflightContinue: false,
   optionsSuccessStatus: 204
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));

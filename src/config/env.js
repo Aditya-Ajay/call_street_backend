@@ -23,24 +23,22 @@ const validateEnvVariables = (requiredVars) => {
 };
 
 // List of required environment variables
+// Note: DB_* variables are optional if DATABASE_URL is provided
 const REQUIRED_ENV_VARS = [
   'NODE_ENV',
   'PORT',
-  'DB_HOST',
-  'DB_PORT',
-  'DB_NAME',
-  'DB_USER',
-  'DB_PASSWORD',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
-  'FRONTEND_URL',
-  'RAZORPAY_KEY_ID',
-  'RAZORPAY_KEY_SECRET',
-  'RAZORPAY_WEBHOOK_SECRET'
+  'FRONTEND_URL'
 ];
 
 // Validate on module load
 validateEnvVariables(REQUIRED_ENV_VARS);
+
+// Validate database connection (either DATABASE_URL or individual variables)
+if (!process.env.DATABASE_URL && (!process.env.DB_HOST || !process.env.DB_NAME)) {
+  throw new Error('Either DATABASE_URL or DB_HOST/DB_NAME must be provided');
+}
 
 // Export configuration object
 const config = {
