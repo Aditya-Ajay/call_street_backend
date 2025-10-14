@@ -33,9 +33,8 @@ const sendPhoneOTP = async (phone, purpose = 'signup_or_login') => {
       );
     }
 
-    // Generate OTP (hardcoded in development)
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const otp = isDevelopment ? '123456' : generateOTP(6);
+    // Generate OTP (hardcoded - Twilio not in use)
+    const otp = '123456';
 
     // Store OTP hash in database
     const storeResult = await OtpVerification.storeOTP({
@@ -46,31 +45,23 @@ const sendPhoneOTP = async (phone, purpose = 'signup_or_login') => {
       expiryMinutes: 6
     });
 
-    let smsResult;
+    // Log OTP to console (no SMS sent)
+    console.log('🔐 HARDCODED OTP MODE - OTP for', maskPhone(phone), ':', otp);
 
-    if (isDevelopment) {
-      // In development, just log OTP to console
-      console.log('🔐 DEVELOPMENT MODE - OTP for', maskPhone(phone), ':', otp);
-      smsResult = {
-        provider: 'development',
-        messageId: 'dev-' + Date.now(),
-        success: true
-      };
-    } else {
-      // In production, send actual SMS
-      smsResult = await sendOTPSMS(phone, otp);
-    }
+    const smsResult = {
+      provider: 'hardcoded',
+      messageId: 'hardcoded-' + Date.now(),
+      success: true
+    };
 
     return {
       success: true,
-      message: isDevelopment
-        ? `OTP sent successfully (Dev mode: ${otp})`
-        : 'OTP sent successfully',
+      message: `OTP sent successfully (Use: ${otp})`,
       phone: maskPhone(phone),
       expiresIn: storeResult.expiresIn,
       provider: smsResult.provider,
       messageId: smsResult.messageId,
-      ...(isDevelopment && { devOTP: otp }) // Include OTP in dev mode
+      devOTP: otp // Always include OTP
     };
   } catch (error) {
     // If it's already an AppError, rethrow it
@@ -110,9 +101,8 @@ const sendEmailOTP = async (email, purpose = 'signup_or_login') => {
       );
     }
 
-    // Generate OTP (hardcoded in development)
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const otp = isDevelopment ? '123456' : generateOTP(6);
+    // Generate OTP (hardcoded - Resend email not in use)
+    const otp = '123456';
 
     // Store OTP hash in database
     const storeResult = await OtpVerification.storeOTP({
@@ -123,31 +113,23 @@ const sendEmailOTP = async (email, purpose = 'signup_or_login') => {
       expiryMinutes: 6
     });
 
-    let emailResult;
+    // Log OTP to console (no email sent)
+    console.log('🔐 HARDCODED OTP MODE - OTP for', maskEmail(email), ':', otp);
 
-    if (isDevelopment) {
-      // In development, just log OTP to console
-      console.log('🔐 DEVELOPMENT MODE - OTP for', maskEmail(email), ':', otp);
-      emailResult = {
-        provider: 'development',
-        messageId: 'dev-' + Date.now(),
-        success: true
-      };
-    } else {
-      // In production, send actual email
-      emailResult = await sendOTPEmail(email, otp);
-    }
+    const emailResult = {
+      provider: 'hardcoded',
+      messageId: 'hardcoded-' + Date.now(),
+      success: true
+    };
 
     return {
       success: true,
-      message: isDevelopment
-        ? `OTP sent successfully (Dev mode: ${otp})`
-        : 'OTP sent successfully',
+      message: `OTP sent successfully (Use: ${otp})`,
       email: maskEmail(email),
       expiresIn: storeResult.expiresIn,
       provider: emailResult.provider,
       messageId: emailResult.messageId,
-      ...(isDevelopment && { devOTP: otp }) // Include OTP in dev mode
+      devOTP: otp // Always include OTP
     };
   } catch (error) {
     // If it's already an AppError, rethrow it
