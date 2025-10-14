@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat System Test Client</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #5865f2;
+    }
+
+    .status {
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .status.connected {
+      background: #3ba55c;
+    }
+
+    .status.disconnected {
+      background: #ed4245;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: #2f3136;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .panel h2 {
+      color: #dcddde;
+      margin-bottom: 15px;
+      font-size: 18px;
+      border-bottom: 2px solid #5865f2;
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #b9bbbe;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #40444b;
+      background: #40444b;
+      color: #fff;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #5865f2;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #4752c4;
+    }
+
+    button:disabled {
+      background: #4f545c;
+      cursor: not-allowed;
+    }
+
+    .btn-danger {
+      background: #ed4245;
+    }
+
+    .btn-danger:hover {
+      background: #c03537;
+    }
+
+    .btn-success {
+      background: #3ba55c;
+    }
+
+    .btn-success:hover {
+      background: #2d7d46;
+    }
+
+    .messages {
+      background: #36393f;
+      border-radius: 8px;
+      padding: 15px;
+      height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .message {
+      background: #40444b;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      border-left: 3px solid #5865f2;
+    }
+
+    .message.event {
+      border-left-color: #3ba55c;
+    }
+
+    .message.error {
+      border-left-color: #ed4245;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .message-user {
+      font-weight: 600;
+      color: #5865f2;
+    }
+
+    .message-time {
+      color: #72767d;
+      font-size: 12px;
+    }
+
+    .message-text {
+      color: #dcddde;
+      line-height: 1.4;
+    }
+
+    .online-users {
+      background: #36393f;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      background: #40444b;
+    }
+
+    .user-status {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3ba55c;
+      margin-right: 10px;
+    }
+
+    .typing-indicator {
+      background: #36393f;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-style: italic;
+      color: #b9bbbe;
+    }
+
+    .empty {
+      text-align: center;
+      color: #72767d;
+      padding: 20px;
+    }
+
+    pre {
+      background: #202225;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+      color: #b9bbbe;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Chat System Test Client</h1>
+
+    <div id="status" class="status disconnected">
+      Disconnected
+    </div>
+
+    <div class="grid">
+      <!-- Connection Panel -->
+      <div class="panel">
+        <h2>Connection</h2>
+        <div class="form-group">
+          <label>Server URL</label>
+          <input type="text" id="serverUrl" value="http://localhost:5000">
+        </div>
+        <div class="form-group">
+          <label>JWT Token</label>
+          <textarea id="jwtToken" placeholder="Paste your JWT token here..."></textarea>
+        </div>
+        <button id="connectBtn" class="btn-success">Connect</button>
+        <button id="disconnectBtn" class="btn-danger" disabled>Disconnect</button>
+      </div>
+
+      <!-- Channel Actions -->
+      <div class="panel">
+        <h2>Channel Actions</h2>
+        <div class="form-group">
+          <label>Channel ID</label>
+          <input type="text" id="channelId" placeholder="Enter channel UUID">
+        </div>
+        <button id="joinBtn" disabled>Join Channel</button>
+        <button id="leaveBtn" class="btn-danger" disabled>Leave Channel</button>
+        <button id="getOnlineBtn" disabled>Get Online Users</button>
+      </div>
+
+      <!-- Send Message -->
+      <div class="panel">
+        <h2>Send Message</h2>
+        <div class="form-group">
+          <label>Message</label>
+          <textarea id="messageText" placeholder="Type your message..."></textarea>
+        </div>
+        <button id="sendBtn" disabled>Send Message</button>
+        <button id="typingStartBtn" disabled>Start Typing</button>
+        <button id="typingStopBtn" disabled>Stop Typing</button>
+      </div>
+
+      <!-- Moderation -->
+      <div class="panel">
+        <h2>Moderation (Analyst Only)</h2>
+        <div class="form-group">
+          <label>Target User ID</label>
+          <input type="text" id="targetUserId" placeholder="User UUID to mute/ban">
+        </div>
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="muteDuration" value="60">
+        </div>
+        <div class="form-group">
+          <label>Reason</label>
+          <input type="text" id="banReason" placeholder="Reason for ban/mute">
+        </div>
+        <button id="muteBtn" disabled>Mute User</button>
+        <button id="banBtn" class="btn-danger" disabled>Ban User</button>
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Message ID to Delete</label>
+          <input type="text" id="deleteMessageId" placeholder="Message UUID">
+        </div>
+        <button id="deleteBtn" class="btn-danger" disabled>Delete Message</button>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="typingIndicator" class="typing-indicator" style="display: none;"></div>
+
+    <!-- Messages -->
+    <div class="panel" style="margin-top: 20px;">
+      <h2>Messages & Events</h2>
+      <div id="messages" class="messages">
+        <div class="empty">Connect to server and join a channel to see messages</div>
+      </div>
+    </div>
+
+    <!-- Online Users -->
+    <div class="panel" style="margin-top: 20px;">
+      <h2>Online Users</h2>
+      <div id="onlineUsers" class="online-users">
+        <div class="empty">No online users</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    let socket = null;
+    let currentChannelId = null;
+
+    // DOM Elements
+    const statusEl = document.getElementById('status');
+    const messagesEl = document.getElementById('messages');
+    const onlineUsersEl = document.getElementById('onlineUsers');
+    const typingIndicatorEl = document.getElementById('typingIndicator');
+
+    // Buttons
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const leaveBtn = document.getElementById('leaveBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const typingStartBtn = document.getElementById('typingStartBtn');
+    const typingStopBtn = document.getElementById('typingStopBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const banBtn = document.getElementById('banBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const getOnlineBtn = document.getElementById('getOnlineBtn');
+
+    // Connect to server
+    connectBtn.addEventListener('click', () => {
+      const serverUrl = document.getElementById('serverUrl').value;
+      const token = document.getElementById('jwtToken').value.trim();
+
+      if (!token) {
+        addMessage('error', 'Error', 'JWT token is required');
+        return;
+      }
+
+      socket = io(serverUrl, {
+        auth: { token }
+      });
+
+      socket.on('connect', () => {
+        statusEl.className = 'status connected';
+        statusEl.textContent = `Connected: ${socket.id}`;
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        joinBtn.disabled = false;
+        addMessage('event', 'System', 'Connected to server');
+      });
+
+      socket.on('disconnect', () => {
+        statusEl.className = 'status disconnected';
+        statusEl.textContent = 'Disconnected';
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        disableAllButtons();
+        addMessage('event', 'System', 'Disconnected from server');
+      });
+
+      // Channel joined
+      socket.on('channel_joined', (data) => {
+        currentChannelId = data.channelId;
+        addMessage('event', 'System', `Joined channel: ${data.channel.channel_name}`);
+        addMessage('event', 'Info', `Online count: ${data.online_count}, Can post: ${data.can_post}`);
+
+        // Display initial messages
+        if (data.messages && data.messages.length > 0) {
+          data.messages.forEach(msg => {
+            addMessage('message', msg.user_name, msg.message, msg.created_at);
+          });
+        }
+
+        enableChannelButtons();
+      });
+
+      // New message
+      socket.on('message', (data) => {
+        addMessage('message', data.user_name, data.message, data.created_at);
+      });
+
+      // Message deleted
+      socket.on('message_deleted', (data) => {
+        addMessage('event', 'System', `Message deleted by user ${data.deletedBy}`);
+      });
+
+      // User joined/left
+      socket.on('user_joined', (data) => {
+        addMessage('event', 'System', `${data.userName} joined the channel (${data.online_count} online)`);
+      });
+
+      socket.on('user_left', (data) => {
+        addMessage('event', 'System', `${data.userName} left the channel (${data.online_count} online)`);
+      });
+
+      // Typing indicator
+      socket.on('typing_indicator', (data) => {
+        if (data.stopped) {
+          typingIndicatorEl.style.display = 'none';
+        } else if (data.typing_users && data.typing_users.length > 0) {
+          const names = data.typing_users.slice(0, 3).join(', ');
+          const others = data.typing_count > 3 ? ` and ${data.typing_count - 3} others` : '';
+          typingIndicatorEl.textContent = `${names}${others} ${data.typing_count === 1 ? 'is' : 'are'} typing...`;
+          typingIndicatorEl.style.display = 'block';
+        }
+      });
+
+      // Rate limit
+      socket.on('rate_limit_exceeded', (data) => {
+        addMessage('error', 'Rate Limit', data.message);
+      });
+
+      socket.on('rate_limit_warning', (data) => {
+        addMessage('event', 'Warning', data.message);
+      });
+
+      // Moderation
+      socket.on('user_muted', (data) => {
+        addMessage('error', 'Muted', data.message);
+      });
+
+      socket.on('user_banned', (data) => {
+        addMessage('error', 'Banned', data.message);
+      });
+
+      socket.on('mute_success', (data) => {
+        addMessage('event', 'Success', `User ${data.targetUserId} muted for ${data.duration} minutes`);
+      });
+
+      socket.on('ban_success', (data) => {
+        addMessage('event', 'Success', `User ${data.targetUserId} banned`);
+      });
+
+      // Online users
+      socket.on('online_users', (data) => {
+        displayOnlineUsers(data.users);
+      });
+
+      // Errors
+      socket.on('error', (data) => {
+        addMessage('error', 'Error', `${data.event}: ${data.message}`);
+      });
+
+      // Presence
+      socket.on('user_online', (data) => {
+        addMessage('event', 'System', `${data.userName || 'User'} is now online`);
+      });
+
+      socket.on('user_offline', (data) => {
+        addMessage('event', 'System', `${data.userName || 'User'} is now offline`);
+      });
+    });
+
+    // Disconnect
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    });
+
+    // Join channel
+    joinBtn.addEventListener('click', () => {
+      const channelId = document.getElementById('channelId').value.trim();
+      if (!channelId) {
+        addMessage('error', 'Error', 'Channel ID is required');
+        return;
+      }
+      socket.emit('join_channel', { channelId });
+    });
+
+    // Leave channel
+    leaveBtn.addEventListener('click', () => {
+      if (currentChannelId) {
+        socket.emit('leave_channel', { channelId: currentChannelId });
+        currentChannelId = null;
+        disableChannelButtons();
+        addMessage('event', 'System', 'Left channel');
+      }
+    });
+
+    // Send message
+    sendBtn.addEventListener('click', () => {
+      const message = document.getElementById('messageText').value.trim();
+      if (!message || !currentChannelId) return;
+
+      socket.emit('send_message', {
+        channelId: currentChannelId,
+        message,
+        messageType: 'text'
+      });
+
+      document.getElementById('messageText').value = '';
+    });
+
+    // Typing indicators
+    typingStartBtn.addEventListener('click', () => {
+      if (currentChannelId) {
+        socket.emit('typing_start', { channelId: currentChannelId });
+      }
+    });
+
+    typingStopBtn.addEventListener('click', () => {
+      if (currentChannelId) {
+        socket.emit('typing_stop', { channelId: currentChannelId });
+      }
+    });
+
+    // Get online users
+    getOnlineBtn.addEventListener('click', () => {
+      if (currentChannelId) {
+        socket.emit('get_online_users', { channelId: currentChannelId });
+      }
+    });
+
+    // Mute user
+    muteBtn.addEventListener('click', () => {
+      const targetUserId = document.getElementById('targetUserId').value.trim();
+      const duration = parseInt(document.getElementById('muteDuration').value);
+
+      if (!targetUserId || !currentChannelId) return;
+
+      socket.emit('mute_user', {
+        channelId: currentChannelId,
+        targetUserId,
+        duration
+      });
+    });
+
+    // Ban user
+    banBtn.addEventListener('click', () => {
+      const targetUserId = document.getElementById('targetUserId').value.trim();
+      const reason = document.getElementById('banReason').value.trim() || 'No reason provided';
+
+      if (!targetUserId || !currentChannelId) return;
+
+      socket.emit('ban_user', {
+        channelId: currentChannelId,
+        targetUserId,
+        reason
+      });
+    });
+
+    // Delete message
+    deleteBtn.addEventListener('click', () => {
+      const messageId = document.getElementById('deleteMessageId').value.trim();
+
+      if (!messageId || !currentChannelId) return;
+
+      socket.emit('delete_message', {
+        messageId,
+        channelId: currentChannelId,
+        reason: 'Deleted via test client'
+      });
+    });
+
+    // Helper functions
+    function addMessage(type, user, text, time) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+
+      const header = document.createElement('div');
+      header.className = 'message-header';
+
+      const userSpan = document.createElement('span');
+      userSpan.className = 'message-user';
+      userSpan.textContent = user;
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'message-time';
+      timeSpan.textContent = time ? new Date(time).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+      header.appendChild(userSpan);
+      header.appendChild(timeSpan);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'message-text';
+      textDiv.textContent = text;
+
+      messageDiv.appendChild(header);
+      messageDiv.appendChild(textDiv);
+
+      if (messagesEl.querySelector('.empty')) {
+        messagesEl.innerHTML = '';
+      }
+
+      messagesEl.appendChild(messageDiv);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function displayOnlineUsers(users) {
+      if (!users || users.length === 0) {
+        onlineUsersEl.innerHTML = '<div class="empty">No online users</div>';
+        return;
+      }
+
+      onlineUsersEl.innerHTML = '';
+      users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-item';
+        userDiv.innerHTML = `
+          <div class="user-status"></div>
+          <div>
+            <strong>${user.userName}</strong>
+            <small style="color: #72767d; margin-left: 10px;">${user.userRole}</small>
+          </div>
+        `;
+        onlineUsersEl.appendChild(userDiv);
+      });
+    }
+
+    function enableChannelButtons() {
+      leaveBtn.disabled = false;
+      sendBtn.disabled = false;
+      typingStartBtn.disabled = false;
+      typingStopBtn.disabled = false;
+      muteBtn.disabled = false;
+      banBtn.disabled = false;
+      deleteBtn.disabled = false;
+      getOnlineBtn.disabled = false;
+    }
+
+    function disableChannelButtons() {
+      leaveBtn.disabled = true;
+      sendBtn.disabled = true;
+      typingStartBtn.disabled = true;
+      typingStopBtn.disabled = true;
+      muteBtn.disabled = true;
+      banBtn.disabled = true;
+      deleteBtn.disabled = true;
+      getOnlineBtn.disabled = true;
+    }
+
+    function disableAllButtons() {
+      joinBtn.disabled = true;
+      disableChannelButtons();
+    }
+  </script>
+</body>
+</html>
