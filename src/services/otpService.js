@@ -36,13 +36,13 @@ const sendPhoneOTP = async (phone, purpose = 'signup_or_login') => {
     // Generate OTP (hardcoded - Twilio not in use)
     const otp = '123456';
 
-    // Store OTP hash in database
+    // Store OTP hash in database (no expiry)
     const storeResult = await OtpVerification.storeOTP({
       identifier: phone,
       identifierType: 'phone',
       otp,
       purpose,
-      expiryMinutes: 6
+      expiryMinutes: 999999 // Very long expiry (effectively no expiry)
     });
 
     // Log OTP to console (no SMS sent)
@@ -104,13 +104,13 @@ const sendEmailOTP = async (email, purpose = 'signup_or_login') => {
     // Generate OTP (hardcoded - Resend email not in use)
     const otp = '123456';
 
-    // Store OTP hash in database
+    // Store OTP hash in database (no expiry)
     const storeResult = await OtpVerification.storeOTP({
       identifier: email,
       identifierType: 'email',
       otp,
       purpose,
-      expiryMinutes: 6
+      expiryMinutes: 999999 // Very long expiry (effectively no expiry)
     });
 
     // Log OTP to console (no email sent)
