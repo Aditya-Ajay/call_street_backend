@@ -344,10 +344,16 @@ const refreshToken = asyncHandler(async (req, res) => {
   // Set new access token in cookie with consistent settings
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
-    secure: config.isProduction,
+    secure: true, // Always secure for production
     sameSite: config.isProduction ? 'none' : 'lax', // 'none' for cross-domain support
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/'
+  });
+
+  // Log for debugging
+  console.log('[Refresh Token] New access token cookie set:', {
+    secure: true,
+    sameSite: config.isProduction ? 'none' : 'lax'
   });
 
   return res.status(200).json({
@@ -473,7 +479,7 @@ const setTokenCookies = (res, accessToken, refreshToken) => {
   // Cookie configuration
   const cookieOptions = {
     httpOnly: true, // Prevents JavaScript access (XSS protection)
-    secure: config.isProduction, // HTTPS only in production
+    secure: true, // Always use secure in production (HTTPS required for cross-domain)
     sameSite: config.isProduction ? 'none' : 'lax', // 'none' allows cross-site in production (required for cross-domain cookies)
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -489,15 +495,17 @@ const setTokenCookies = (res, accessToken, refreshToken) => {
     path: '/api/auth/refresh-token' // Only sent to refresh-token endpoint
   });
 
-  // Log cookie settings in development
-  if (config.isDevelopment) {
-    console.log('[Auth] Cookies set with options:', {
-      httpOnly: cookieOptions.httpOnly,
-      secure: cookieOptions.secure,
-      sameSite: cookieOptions.sameSite,
-      path: cookieOptions.path
-    });
-  }
+  // Log cookie settings
+  console.log('[Auth] Cookies set with options:', {
+    httpOnly: cookieOptions.httpOnly,
+    secure: cookieOptions.secure,
+    sameSite: cookieOptions.sameSite,
+    path: cookieOptions.path,
+    maxAge: cookieOptions.maxAge
+  });
+
+  // Log Set-Cookie header for debugging
+  console.log('[Auth] Set-Cookie headers:', res.getHeaders()['set-cookie']);
 };
 
 module.exports = {
