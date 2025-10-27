@@ -345,7 +345,7 @@ const refreshToken = asyncHandler(async (req, res) => {
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: config.isProduction,
-    sameSite: config.isProduction ? 'strict' : 'lax',
+    sameSite: config.isProduction ? 'none' : 'lax', // 'none' for cross-domain support
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/'
   });
@@ -474,7 +474,7 @@ const setTokenCookies = (res, accessToken, refreshToken) => {
   const cookieOptions = {
     httpOnly: true, // Prevents JavaScript access (XSS protection)
     secure: config.isProduction, // HTTPS only in production
-    sameSite: config.isProduction ? 'strict' : 'lax', // 'lax' allows cross-site in dev
+    sameSite: config.isProduction ? 'none' : 'lax', // 'none' allows cross-site in production (required for cross-domain cookies)
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   };
