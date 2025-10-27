@@ -74,6 +74,8 @@ const signupWithEmail = asyncHandler(async (req, res) => {
 const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, email, otp, user_type = 'trader' } = req.body;
 
+  console.log('🔐 [verifyOTP] Request body:', { phone, email, user_type });
+
   let user;
   let isNewUser = false;
 
@@ -86,9 +88,12 @@ const verifyOTP = asyncHandler(async (req, res) => {
     user = await User.findUserByPhone(phone);
 
     if (!user) {
+      console.log('✨ [verifyOTP] Creating NEW user with user_type:', user_type);
       // Create new user
       user = await authService.registerWithPhone({ phone, user_type });
       isNewUser = true;
+    } else {
+      console.log('👤 [verifyOTP] Existing user found:', { id: user.id, user_type: user.user_type });
     }
   }
   // Verify email OTP
@@ -100,9 +105,12 @@ const verifyOTP = asyncHandler(async (req, res) => {
     user = await User.findUserByEmail(email);
 
     if (!user) {
+      console.log('✨ [verifyOTP] Creating NEW user with user_type:', user_type);
       // Create new user
       user = await authService.registerWithEmail({ email, user_type });
       isNewUser = true;
+    } else {
+      console.log('👤 [verifyOTP] Existing user found:', { id: user.id, user_type: user.user_type });
     }
   }
   else {
@@ -169,7 +177,40 @@ const verifyOTP = asyncHandler(async (req, res) => {
  * Request OTP to phone or email (unified endpoint for signup/login)
  */
 const requestOTP = asyncHandler(async (req, res) => {
-  const { phone, email } = req.body;
+  const { phone, email, user_type, sebi_number } = req.body;
+
+  // If analyst signup, verify SEBI number first
+  if (user_type === 'analyst' && sebi_number) {
+    console.log(`[Request OTP] Analyst signup - verifying SEBI: ${sebi_number}`);
+
+    const sebiVerificationService = require('../services/sebiVerificationService');
+
+    try {
+      const verificationResult = await sebiVerificationService.verifySEBIRegistration(sebi_number);
+
+      if (!verificationResult.isValid) {
+        console.error(`[Request OTP] SEBI verification failed: ${verificationResult.reason}`);
+        throw new AppError(
+          `SEBI verification failed: ${verificationResult.reason}. Please ensure your SEBI registration number is correct and currently active.`,
+          400
+        );
+      }
+
+      console.log(`[Request OTP] ✅ SEBI verified: ${verificationResult.registrationType}`);
+    } catch (sebiError) {
+      // If it's already an AppError (from verification service), re-throw it
+      if (sebiError instanceof AppError) {
+        throw sebiError;
+      }
+
+      // For network/timeout errors, provide helpful message
+      console.error('[Request OTP] SEBI verification error:', sebiError.message);
+      throw new AppError(
+        'Unable to verify SEBI registration at this time. Please try again later.',
+        503
+      );
+    }
+  }
 
   let result;
 
@@ -197,7 +238,40 @@ const requestOTP = asyncHandler(async (req, res) => {
  * Resend OTP to phone or email
  */
 const resendOTP = asyncHandler(async (req, res) => {
-  const { phone, email } = req.body;
+  const { phone, email, user_type, sebi_number } = req.body;
+
+  // If analyst signup, verify SEBI number first
+  if (user_type === 'analyst' && sebi_number) {
+    console.log(`[Resend OTP] Analyst signup - verifying SEBI: ${sebi_number}`);
+
+    const sebiVerificationService = require('../services/sebiVerificationService');
+
+    try {
+      const verificationResult = await sebiVerificationService.verifySEBIRegistration(sebi_number);
+
+      if (!verificationResult.isValid) {
+        console.error(`[Resend OTP] SEBI verification failed: ${verificationResult.reason}`);
+        throw new AppError(
+          `SEBI verification failed: ${verificationResult.reason}. Please ensure your SEBI registration number is correct and currently active.`,
+          400
+        );
+      }
+
+      console.log(`[Resend OTP] ✅ SEBI verified: ${verificationResult.registrationType}`);
+    } catch (sebiError) {
+      // If it's already an AppError (from verification service), re-throw it
+      if (sebiError instanceof AppError) {
+        throw sebiError;
+      }
+
+      // For network/timeout errors, provide helpful message
+      console.error('[Resend OTP] SEBI verification error:', sebiError.message);
+      throw new AppError(
+        'Unable to verify SEBI registration at this time. Please try again later.',
+        503
+      );
+    }
+  }
 
   let result;
 

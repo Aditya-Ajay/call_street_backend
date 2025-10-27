@@ -44,8 +44,14 @@ const createPost = async (postData) => {
     } = postData;
 
     // Validate required fields
-    if (!analyst_id || !content) {
-      throw new AppError('Analyst ID and content are required', 400);
+    if (!analyst_id) {
+      console.error('[Post Model] Missing analyst_id. Received postData:', postData);
+      throw new AppError('Analyst ID is required - user may not be authenticated', 400);
+    }
+
+    if (!content) {
+      console.error('[Post Model] Missing content. Received postData:', postData);
+      throw new AppError('Content is required', 400);
     }
 
     // For call type, validate required fields
@@ -851,6 +857,18 @@ const getAllPosts = async (filters = {}, userId = null, options = {}) => {
     if (filters.audience) {
       conditions.push(`p.audience = $${paramIndex}`);
       params.push(filters.audience);
+      paramIndex++;
+    }
+
+    if (filters.post_type) {
+      conditions.push(`p.post_type = $${paramIndex}`);
+      params.push(filters.post_type);
+      paramIndex++;
+    }
+
+    if (filters.call_status) {
+      conditions.push(`p.call_status = $${paramIndex}`);
+      params.push(filters.call_status);
       paramIndex++;
     }
 

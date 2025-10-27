@@ -19,19 +19,20 @@ const { AppError } = require('../middleware/errorHandler');
  */
 const sendPhoneOTP = async (phone, purpose = 'signup_or_login') => {
   try {
+    // RATE LIMITING DISABLED FOR TESTING
     // Check rate limiting (60 seconds cooldown)
-    const rateLimitCheck = await OtpVerification.checkOTPRateLimit(
-      phone,
-      'phone',
-      60
-    );
+    // const rateLimitCheck = await OtpVerification.checkOTPRateLimit(
+    //   phone,
+    //   'phone',
+    //   60
+    // );
 
-    if (!rateLimitCheck.canSend) {
-      throw new AppError(
-        `Please wait ${rateLimitCheck.waitSeconds} seconds before requesting a new OTP`,
-        429
-      );
-    }
+    // if (!rateLimitCheck.canSend) {
+    //   throw new AppError(
+    //     `Please wait ${rateLimitCheck.waitSeconds} seconds before requesting a new OTP`,
+    //     429
+    //   );
+    // }
 
     // Generate OTP (hardcoded - Twilio not in use)
     const otp = '123456';
@@ -87,19 +88,20 @@ const sendPhoneOTP = async (phone, purpose = 'signup_or_login') => {
  */
 const sendEmailOTP = async (email, purpose = 'signup_or_login') => {
   try {
+    // RATE LIMITING DISABLED FOR TESTING
     // Check rate limiting (60 seconds cooldown)
-    const rateLimitCheck = await OtpVerification.checkOTPRateLimit(
-      email,
-      'email',
-      60
-    );
+    // const rateLimitCheck = await OtpVerification.checkOTPRateLimit(
+    //   email,
+    //   'email',
+    //   60
+    // );
 
-    if (!rateLimitCheck.canSend) {
-      throw new AppError(
-        `Please wait ${rateLimitCheck.waitSeconds} seconds before requesting a new OTP`,
-        429
-      );
-    }
+    // if (!rateLimitCheck.canSend) {
+    //   throw new AppError(
+    //     `Please wait ${rateLimitCheck.waitSeconds} seconds before requesting a new OTP`,
+    //     429
+    //   );
+    // }
 
     // Generate OTP (hardcoded - Resend email not in use)
     const otp = '123456';

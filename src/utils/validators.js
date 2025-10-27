@@ -13,11 +13,12 @@ const { SPECIALIZATIONS, SUBSCRIPTION_TIERS, USER_ROLES } = require('./constants
  * @returns {boolean} - True if valid format
  */
 const isValidSebiNumber = (sebiNumber) => {
-  // SEBI format: INH/INA/INM + 9 digits
+  // SEBI format: INH/INA/INM/INP + 9 digits
   // INH = Investment Adviser (Non-Individual)
   // INA = Investment Adviser (Individual)
   // INM = Portfolio Manager
-  const sebiRegex = /^IN[HMN]\d{9}$/;
+  // INP = Portfolio Manager
+  const sebiRegex = /^IN[AHMNP]\d{9}$/;
   return sebiRegex.test(sebiNumber.toUpperCase());
 };
 

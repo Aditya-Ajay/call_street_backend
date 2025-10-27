@@ -55,8 +55,22 @@ const createPost = asyncHandler(async (req, res) => {
     audience,
     is_urgent = false,
     is_pinned = false,
-    use_ai = true
+    use_ai = true,
+    // Optional: Pre-formatted data from frontend
+    stock_symbol: providedStockSymbol,
+    action: providedAction,
+    entry_price: providedEntryPrice,
+    target_price: providedTargetPrice,
+    stop_loss: providedStopLoss,
+    strategy_type: providedStrategyType,
+    content_formatted: providedContentFormatted,
+    title: providedTitle
   } = req.body;
+
+  // Debug logging
+  console.log('[CreatePost] Request body:', req.body);
+  console.log('[CreatePost] User from token:', req.user);
+  console.log('[CreatePost] Cookies:', req.cookies);
 
   // Validation
   if (!raw_content || !raw_content.trim()) {
@@ -65,6 +79,10 @@ const createPost = asyncHandler(async (req, res) => {
 
   if (!audience || !['free', 'paid', 'both'].includes(audience)) {
     throw new AppError('Valid audience is required (free, paid, or both)', 400);
+  }
+
+  if (!req.user || !req.user.id) {
+    throw new AppError('User authentication failed - no user ID', 401);
   }
 
   const analystId = req.user.id;
@@ -107,12 +125,23 @@ const createPost = asyncHandler(async (req, res) => {
       console.error('AI formatting error:', error);
       formattedData = getFallbackFormat(raw_content);
     }
+  } else if (providedContentFormatted) {
+    // Use pre-formatted data from frontend
+    formattedData = providedContentFormatted;
   }
 
+  // Determine stock symbol, action, etc. - prefer AI formatted data, fall back to provided data
+  const stockSymbol = formattedData?.stock || formattedData?.stock_symbol || providedStockSymbol || null;
+  const action = formattedData?.action || providedAction || null;
+  const entryPrice = formattedData?.entry_price || providedEntryPrice || null;
+  const targetPrice = formattedData?.target_price || providedTargetPrice || null;
+  const stopLoss = formattedData?.stop_loss || providedStopLoss || null;
+  const strategyType = formattedData?.strategy_type || providedStrategyType || null;
+
   // Generate auto title for calls
-  let title = null;
-  if (post_type === 'call' && formattedData && formattedData.stock && formattedData.action) {
-    title = `${formattedData.stock} ${formattedData.action} Call`;
+  let title = providedTitle;
+  if (!title && post_type === 'call' && stockSymbol && action) {
+    title = `${stockSymbol} ${action} Call`;
   }
 
   // Prepare post data
@@ -122,13 +151,13 @@ const createPost = asyncHandler(async (req, res) => {
     content: raw_content,
     content_formatted: formattedData,
     post_type: post_type,
-    strategy_type: formattedData?.strategy_type?.toLowerCase() || null,
+    strategy_type: strategyType?.toLowerCase() || null,
     audience: audience,
-    stock_symbol: formattedData?.stock || null,
-    action: formattedData?.action || null,
-    entry_price: formattedData?.entry_price || null,
-    target_price: formattedData?.target_price || null,
-    stop_loss: formattedData?.stop_loss || null,
+    stock_symbol: stockSymbol,
+    action: action,
+    entry_price: entryPrice,
+    target_price: targetPrice,
+    stop_loss: stopLoss,
     risk_reward_ratio: formattedData?.risk_reward_ratio || null,
     confidence_level: formattedData?.confidence || null,
     is_urgent: is_urgent,
@@ -831,6 +860,8 @@ const getAllPosts = asyncHandler(async (req, res) => {
     strategy_type: req.query.strategy_type,
     stock_symbol: req.query.stock_symbol,
     audience: req.query.audience,
+    post_type: req.query.post_type,
+    call_status: req.query.call_status,
     sort: req.query.sort || 'recent'
   };
 
@@ -839,7 +870,12 @@ const getAllPosts = asyncHandler(async (req, res) => {
     limit: Math.min(parseInt(req.query.limit) || 20, 100)
   };
 
+  console.log('[getAllPosts] Filters:', filters);
+  console.log('[getAllPosts] Options:', options);
+
   const posts = await PostModel.getAllPosts(filters, userId, options);
+
+  console.log('[getAllPosts] Found posts:', posts.posts.length);
 
   res.json({
     success: true,

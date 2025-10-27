@@ -45,18 +45,21 @@ const verifyToken = asyncHandler(async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, config.jwt.secret);
 
+    // Support both 'id' and 'user_id' for backward compatibility
+    const userId = decoded.id || decoded.user_id;
+
     // Log successful authentication in development
     if (config.isDevelopment) {
-      console.log(`[Auth] Token verified from ${tokenSource} for user:`, decoded.id);
+      console.log(`[Auth] Token verified from ${tokenSource} for user:`, userId);
     }
 
     // Attach user info to request
     req.user = {
-      id: decoded.id,
+      id: userId,
       email: decoded.email,
       phone: decoded.phone,
       role: decoded.role,
-      isVerified: decoded.isVerified
+      isVerified: decoded.isVerified || decoded.is_verified
     };
 
     next();
@@ -195,12 +198,15 @@ const optionalAuth = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
 
+    // Support both 'id' and 'user_id' for backward compatibility
+    const userId = decoded.id || decoded.user_id;
+
     req.user = {
-      id: decoded.id,
+      id: userId,
       email: decoded.email,
       phone: decoded.phone,
       role: decoded.role,
-      isVerified: decoded.isVerified
+      isVerified: decoded.isVerified || decoded.is_verified
     };
 
     next();

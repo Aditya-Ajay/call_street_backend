@@ -518,6 +518,7 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
   } = req.body;
 
   const { pool } = require('../config/database');
+  const sebiVerificationService = require('../services/sebiVerificationService');
   const client = await pool.connect();
 
   try {
@@ -554,11 +555,11 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
       errors.push('Years of experience must be between 0 and 50');
     }
 
-    // Validate SEBI number format (INH/INA/INM + 9 digits)
+    // Validate SEBI number format (INH/INA/INM/INP + 9 digits)
     if (!sebi_number) {
       errors.push('SEBI registration number is required');
-    } else if (!/^IN[HMN]\d{9}$/.test(sebi_number.toUpperCase())) {
-      errors.push('Invalid SEBI number format. Expected: INH/INA/INM followed by 9 digits');
+    } else if (!/^IN[AHMNP]\d{9}$/.test(sebi_number.toUpperCase())) {
+      errors.push('Invalid SEBI number format. Expected: INA/INH/INM/INP followed by 9 digits');
     }
 
     // Validate at least one paid tier is enabled
@@ -569,6 +570,37 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
 
     if (errors.length > 0) {
       throw new AppError(errors.join('. '), 400);
+    }
+
+    // ============================================
+    // 1.5 VERIFY SEBI REGISTRATION (REAL-TIME)
+    // ============================================
+    console.log(`[Profile Setup] Verifying SEBI registration: ${sebi_number}`);
+
+    try {
+      const verificationResult = await sebiVerificationService.verifySEBIRegistration(sebi_number);
+
+      if (!verificationResult.isValid) {
+        console.error(`[Profile Setup] SEBI verification failed: ${verificationResult.reason}`);
+        throw new AppError(
+          `SEBI verification failed: ${verificationResult.reason}. Please ensure your SEBI registration number is correct and currently active.`,
+          400
+        );
+      }
+
+      console.log(`[Profile Setup] ✅ SEBI registration verified successfully: ${verificationResult.registrationType}`);
+    } catch (sebiError) {
+      // If it's already an AppError (from verification service), re-throw it
+      if (sebiError instanceof AppError) {
+        throw sebiError;
+      }
+
+      // For network/timeout errors, provide helpful message
+      console.error('[Profile Setup] SEBI verification error:', sebiError.message);
+      throw new AppError(
+        'Unable to verify SEBI registration at this time. Please try again later or contact support.',
+        503
+      );
     }
 
     // Check if SEBI number already exists
