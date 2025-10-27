@@ -90,13 +90,39 @@ const corsOptions = {
   },
   credentials: true, // CRITICAL: Allows cookies to be sent with requests
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
   exposedHeaders: ['Set-Cookie'], // Allow frontend to read Set-Cookie header
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
+
+// Additional middleware to ensure CORS headers on all responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    config.frontend.url,
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://call-street-frontend.vercel.app'
+  ].filter(Boolean);
+
+  if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Cookie');
+    res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+  }
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));

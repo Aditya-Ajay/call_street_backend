@@ -167,7 +167,13 @@ const verifyOTP = asyncHandler(async (req, res) => {
     message: isNewUser ? 'Account created successfully' : 'Login successful',
     data: {
       user: responseUser,
-      isNewUser
+      isNewUser,
+      // Send tokens in response for clients that can't use cookies (due to third-party cookie blocking)
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: '7d'
+      }
     }
   });
 });
@@ -506,6 +512,13 @@ const setTokenCookies = (res, accessToken, refreshToken) => {
 
   // Log Set-Cookie header for debugging
   console.log('[Auth] Set-Cookie headers:', res.getHeaders()['set-cookie']);
+
+  // Log all response headers for debugging
+  console.log('[Auth] All response headers:', {
+    'access-control-allow-origin': res.getHeader('access-control-allow-origin'),
+    'access-control-allow-credentials': res.getHeader('access-control-allow-credentials'),
+    'set-cookie': res.getHeader('set-cookie')
+  });
 };
 
 module.exports = {
