@@ -376,24 +376,51 @@ const refreshToken = asyncHandler(async (req, res) => {
 const logout = asyncHandler(async (req, res) => {
   const accessToken = req.cookies.accessToken;
   const refreshToken = req.cookies.refreshToken;
+  const userId = req.user.id;
 
   if (!accessToken && !refreshToken) {
     throw new AppError('No active session found', 400);
   }
 
-  // Revoke tokens
+  // Revoke tokens and cleanup sessions
   await authService.logout(
     { accessToken, refreshToken },
-    req.user.id
+    userId
   );
 
-  // Clear cookies
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/api/auth/refresh-token' });
+  // Get user to determine role for additional cleanup
+  const user = await User.findUserById(userId);
+
+  // Log logout event
+  await authService.logAuditEvent(
+    'logout',
+    userId,
+    req.ip,
+    {
+      userAgent: req.headers['user-agent'],
+      userType: user?.user_type
+    }
+  );
+
+  // Clear cookies with proper configuration
+  const cookieOptions = {
+    httpOnly: true,
+    secure: config.isProduction,
+    sameSite: config.isProduction ? 'none' : 'lax',
+    path: '/'
+  };
+
+  res.clearCookie('accessToken', cookieOptions);
+  res.clearCookie('refreshToken', {
+    ...cookieOptions,
+    path: '/api/auth/refresh-token'
+  });
+
+  console.log(`[Logout] User ${userId} (${user?.user_type || 'unknown'}) logged out successfully`);
 
   return res.status(200).json({
     success: true,
-    message: 'Logged out successfully'
+    message: 'Logged out successfully. Your session has been cleared.'
   });
 });
 

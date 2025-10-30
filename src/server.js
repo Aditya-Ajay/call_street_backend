@@ -24,6 +24,7 @@ const { globalLimiter } = require('./middleware/rateLimiter');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const analystRoutes = require('./routes/analyst.routes');
+const traderRoutes = require('./routes/trader.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const postRoutes = require('./routes/post.routes');
 const chatRoutes = require('./routes/chat.routes');
@@ -157,6 +158,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/analysts', analystRoutes);
+app.use('/api/traders', traderRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/chat', chatRoutes);
@@ -179,6 +181,7 @@ app.get('/', (req, res) => {
       health: '/health',
       auth: '/api/auth',
       analysts: '/api/analysts',
+      traders: '/api/traders',
       subscriptions: '/api/subscriptions',
       posts: '/api/posts',
       chat: '/api/chat',
