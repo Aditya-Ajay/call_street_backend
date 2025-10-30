@@ -510,11 +510,13 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
     display_name,
     bio,
     specializations,
+    languages,
     years_of_experience,
     sebi_number,
     sebi_document_url,
     allow_free_subscribers = true,
-    pricing_tiers = {}
+    pricing_tiers = [],
+    profile_photo_url
   } = req.body;
 
   const { pool } = require('../config/database');
@@ -548,6 +550,11 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
       errors.push('At least one specialization is required');
     }
 
+    // Validate languages
+    if (!languages || !Array.isArray(languages) || languages.length === 0) {
+      errors.push('At least one language is required');
+    }
+
     // Validate years_of_experience
     if (years_of_experience === undefined || years_of_experience === null) {
       errors.push('Years of experience is required');
@@ -562,10 +569,16 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
       errors.push('Invalid SEBI number format. Expected: INA/INH/INM/INP followed by 9 digits');
     }
 
-    // Validate at least one paid tier is enabled
-    const { weekly_enabled = false, monthly_enabled = false, yearly_enabled = false } = pricing_tiers;
-    if (!weekly_enabled && !monthly_enabled && !yearly_enabled) {
-      errors.push('At least one paid subscription tier must be enabled');
+    // Validate at least one pricing tier exists
+    if (!Array.isArray(pricing_tiers) || pricing_tiers.length === 0) {
+      errors.push('At least one subscription tier is required');
+    } else {
+      // Validate each tier has at least one price
+      pricing_tiers.forEach((tier, idx) => {
+        if (!tier.weeklyPrice && !tier.monthlyPrice && !tier.yearlyPrice) {
+          errors.push(`Tier "${tier.name || idx + 1}" must have at least one price (weekly, monthly, or yearly)`);
+        }
+      });
     }
 
     if (errors.length > 0) {
@@ -631,9 +644,11 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
         display_name: display_name.trim(),
         bio: bio.trim(),
         specializations,
+        languages,
         years_of_experience,
         sebi_number: sebi_number.toUpperCase(),
         allow_free_subscribers,
+        photo_url: profile_photo_url || existingProfile.photo_url,
         verification_documents: JSON.stringify(verificationDocs)
       });
     } else {
@@ -645,16 +660,18 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
         display_name: display_name.trim(),
         bio: bio.trim(),
         specializations,
+        languages,
         years_of_experience,
         sebi_number: sebi_number.toUpperCase(),
         allow_free_subscribers,
+        photo_url: profile_photo_url,
         invite_link_code: inviteLinkCode,
         verification_documents: verificationDocs
       });
     }
 
     // ============================================
-    // 3. CREATE SUBSCRIPTION TIERS
+    // 3. CREATE SUBSCRIPTION TIERS (CUSTOM FROM FRONTEND)
     // ============================================
     const config = require('../config/env');
     const frontendUrl = config.frontend?.url || 'https://platform.com';
@@ -665,7 +682,7 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
       [userId]
     );
 
-    // Always create FREE tier
+    // Always create FREE tier first
     await client.query(
       `INSERT INTO subscription_tiers (
         analyst_id,
@@ -685,96 +702,108 @@ const completeProfileSetup = asyncHandler(async (req, res) => {
         0,
         0, // Free = 0 price
         'INR',
-        false, // No chat access
-        true,
+        false, // No chat access for free tier
+        allow_free_subscribers, // Only active if analyst allows free audience
         true // This is the free tier
       ]
     );
 
     let tierOrder = 1; // Start paid tiers from order 1
 
-    // Create WEEKLY tier if enabled
-    if (weekly_enabled) {
-      await client.query(
-        `INSERT INTO subscription_tiers (
-          analyst_id,
-          tier_name,
-          tier_description,
-          tier_order,
-          price_monthly,
-          currency,
-          chat_access,
-          is_active,
-          is_free_tier
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          userId,
-          'Weekly',
-          'Weekly subscription with full access',
-          tierOrder++,
-          29900, // ₹299 in paise
-          'INR',
-          true, // Chat access
-          true,
-          false
-        ]
-      );
-    }
+    // Create custom tiers from frontend
+    for (const tier of pricing_tiers) {
+      const tierName = tier.name || 'Subscription';
+      const tierFeatures = Array.isArray(tier.features) ? tier.features.join(', ') : '';
 
-    // Create MONTHLY tier if enabled
-    if (monthly_enabled) {
-      await client.query(
-        `INSERT INTO subscription_tiers (
-          analyst_id,
-          tier_name,
-          tier_description,
-          tier_order,
-          price_monthly,
-          currency,
-          chat_access,
-          is_active,
-          is_free_tier
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          userId,
-          'Monthly',
-          'Monthly subscription with full access',
-          tierOrder++,
-          99900, // ₹999 in paise
-          'INR',
-          true, // Chat access
-          true,
-          false
-        ]
-      );
-    }
+      // Create weekly tier if price provided
+      if (tier.weeklyPrice && tier.weeklyPrice > 0) {
+        await client.query(
+          `INSERT INTO subscription_tiers (
+            analyst_id,
+            tier_name,
+            tier_description,
+            tier_order,
+            price_monthly,
+            duration_months,
+            currency,
+            chat_access,
+            is_active,
+            is_free_tier
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            userId,
+            `${tierName} - Weekly`,
+            tierFeatures || `${tierName} weekly subscription`,
+            tierOrder++,
+            Math.round(tier.weeklyPrice * 100), // Convert to paise
+            0.25, // Weekly = ~0.25 months
+            'INR',
+            true, // Chat access for paid tiers
+            true,
+            false
+          ]
+        );
+      }
 
-    // Create YEARLY tier if enabled
-    if (yearly_enabled) {
-      await client.query(
-        `INSERT INTO subscription_tiers (
-          analyst_id,
-          tier_name,
-          tier_description,
-          tier_order,
-          price_monthly,
-          currency,
-          chat_access,
-          is_active,
-          is_free_tier
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          userId,
-          'Yearly',
-          'Yearly subscription with full access (best value)',
-          tierOrder++,
-          999900, // ₹9999 in paise
-          'INR',
-          true, // Chat access
-          true,
-          false
-        ]
-      );
+      // Create monthly tier if price provided
+      if (tier.monthlyPrice && tier.monthlyPrice > 0) {
+        await client.query(
+          `INSERT INTO subscription_tiers (
+            analyst_id,
+            tier_name,
+            tier_description,
+            tier_order,
+            price_monthly,
+            duration_months,
+            currency,
+            chat_access,
+            is_active,
+            is_free_tier
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            userId,
+            `${tierName} - Monthly`,
+            tierFeatures || `${tierName} monthly subscription`,
+            tierOrder++,
+            Math.round(tier.monthlyPrice * 100), // Convert to paise
+            1, // Monthly
+            'INR',
+            true, // Chat access for paid tiers
+            true,
+            false
+          ]
+        );
+      }
+
+      // Create yearly tier if price provided
+      if (tier.yearlyPrice && tier.yearlyPrice > 0) {
+        await client.query(
+          `INSERT INTO subscription_tiers (
+            analyst_id,
+            tier_name,
+            tier_description,
+            tier_order,
+            price_monthly,
+            duration_months,
+            currency,
+            chat_access,
+            is_active,
+            is_free_tier
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            userId,
+            `${tierName} - Yearly`,
+            tierFeatures || `${tierName} yearly subscription (best value)`,
+            tierOrder++,
+            Math.round(tier.yearlyPrice * 100), // Convert to paise
+            12, // Yearly
+            'INR',
+            true, // Chat access for paid tiers
+            true,
+            false
+          ]
+        );
+      }
     }
 
     // ============================================
