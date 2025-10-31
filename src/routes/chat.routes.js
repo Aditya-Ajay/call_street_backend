@@ -23,6 +23,32 @@ const { chatLimiter } = require('../middleware/rateLimiter');
 const chatController = require('../controllers/chatController');
 
 // ============================================
+// COMMUNITY CHAT ROUTES (Global channels for all traders)
+// NOTE: These MUST come before other channel routes
+// ============================================
+
+/**
+ * @route   GET /api/chat/community/channels
+ * @desc    Get all community channels (global channels for traders)
+ * @access  Private (authenticated users only)
+ */
+router.get('/community/channels', verifyToken, chatController.getCommunityChannels);
+
+/**
+ * @route   GET /api/chat/community/:channelId
+ * @desc    Get a single community channel by ID
+ * @access  Private (authenticated users only)
+ */
+router.get('/community/:channelId', verifyToken, chatController.getCommunityChannelById);
+
+/**
+ * @route   GET /api/chat/community/:channelId/messages
+ * @desc    Get message history for a community channel
+ * @access  Private (authenticated users only)
+ */
+router.get('/community/:channelId/messages', verifyToken, chatController.getCommunityChannelMessages);
+
+// ============================================
 // CHANNEL ROUTES
 // NOTE: Specific routes MUST come before parameterized routes
 // ============================================

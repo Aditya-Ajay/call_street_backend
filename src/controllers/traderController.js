@@ -21,57 +21,86 @@ const { pool } = require('../config/database');
  * Complete trader onboarding and profile setup
  *
  * @access Private (Authenticated traders only)
- * @body {string} display_name - Display name (optional)
- * @body {Array<string>} trading_interests - Trading interests (e.g., ['Intraday', 'Options'])
- * @body {Array<string>} preferred_languages - Languages (e.g., ['English', 'Hindi'])
- * @body {string} experience_level - Experience level: 'beginner', 'intermediate', 'advanced'
- * @body {boolean} receive_notifications - Email notifications enabled
+ * @body {string} full_name - Full name
+ * @body {string} username - Username
+ * @body {number} age - Age
+ * @body {string} trading_experience - Trading experience level
+ * @body {string} portfolio_size - Portfolio size category
+ * @body {string} trading_style - Preferred trading style
+ * @body {string} risk_tolerance - Risk tolerance level
+ * @body {Array<string>} interests - Trading interests/asset classes
  */
 const completeOnboarding = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const {
-    display_name,
-    trading_interests = [],
-    preferred_languages = ['English'],
-    experience_level = 'beginner',
-    receive_notifications = true
+    full_name,
+    username,
+    age,
+    trading_experience,
+    portfolio_size,
+    trading_style,
+    risk_tolerance,
+    interests = []
   } = req.body;
 
   // Validation
   const errors = [];
 
-  // Validate display_name (optional, but if provided, must be valid)
-  if (display_name && display_name.trim().length < 2) {
-    errors.push('Display name must be at least 2 characters');
+  // Validate full_name (required)
+  if (!full_name || full_name.trim().length < 2) {
+    errors.push('Full name is required and must be at least 2 characters');
   }
-  if (display_name && display_name.length > 50) {
-    errors.push('Display name must be 50 characters or less');
+  if (full_name && full_name.length > 100) {
+    errors.push('Full name must be 100 characters or less');
   }
 
-  // Validate trading_interests (optional)
-  if (trading_interests.length > 0) {
-    const validInterests = ['Intraday', 'Swing', 'Options', 'Investment', 'Technical', 'Fundamental'];
-    const invalidInterests = trading_interests.filter(i => !validInterests.includes(i));
+  // Validate username (required)
+  if (!username || username.trim().length < 3) {
+    errors.push('Username is required and must be at least 3 characters');
+  }
+  if (username && username.length > 30) {
+    errors.push('Username must be 30 characters or less');
+  }
+  if (username && !/^[a-zA-Z0-9_]+$/.test(username)) {
+    errors.push('Username can only contain letters, numbers, and underscores');
+  }
+
+  // Validate age (required, must be 18+)
+  if (!age || age < 18 || age > 120) {
+    errors.push('Age must be between 18 and 120');
+  }
+
+  // Validate trading_experience
+  const validExperience = ['beginner', 'intermediate', 'advanced', 'expert'];
+  if (trading_experience && !validExperience.includes(trading_experience)) {
+    errors.push(`Invalid trading experience. Allowed: ${validExperience.join(', ')}`);
+  }
+
+  // Validate portfolio_size
+  const validPortfolioSizes = ['micro', 'small', 'medium', 'large', 'institutional'];
+  if (portfolio_size && !validPortfolioSizes.includes(portfolio_size)) {
+    errors.push(`Invalid portfolio size. Allowed: ${validPortfolioSizes.join(', ')}`);
+  }
+
+  // Validate trading_style
+  const validTradingStyles = ['intraday', 'swing', 'positional', 'longterm', 'mixed'];
+  if (trading_style && !validTradingStyles.includes(trading_style)) {
+    errors.push(`Invalid trading style. Allowed: ${validTradingStyles.join(', ')}`);
+  }
+
+  // Validate risk_tolerance
+  const validRiskLevels = ['conservative', 'moderate', 'aggressive'];
+  if (risk_tolerance && !validRiskLevels.includes(risk_tolerance)) {
+    errors.push(`Invalid risk tolerance. Allowed: ${validRiskLevels.join(', ')}`);
+  }
+
+  // Validate interests (optional array)
+  if (interests.length > 0) {
+    const validInterests = ['stocks', 'options', 'commodities', 'forex', 'crypto', 'mutual_funds'];
+    const invalidInterests = interests.filter(i => !validInterests.includes(i));
     if (invalidInterests.length > 0) {
-      errors.push(`Invalid trading interests: ${invalidInterests.join(', ')}`);
+      errors.push(`Invalid interests: ${invalidInterests.join(', ')}`);
     }
-  }
-
-  // Validate preferred_languages (at least one required)
-  if (!Array.isArray(preferred_languages) || preferred_languages.length === 0) {
-    errors.push('At least one language is required');
-  } else {
-    const validLanguages = ['English', 'Hindi', 'Hinglish', 'Tamil', 'Telugu', 'Gujarati', 'Marathi'];
-    const invalidLanguages = preferred_languages.filter(l => !validLanguages.includes(l));
-    if (invalidLanguages.length > 0) {
-      errors.push(`Invalid languages: ${invalidLanguages.join(', ')}`);
-    }
-  }
-
-  // Validate experience_level
-  const validLevels = ['beginner', 'intermediate', 'advanced'];
-  if (!validLevels.includes(experience_level)) {
-    errors.push(`Invalid experience level. Allowed: ${validLevels.join(', ')}`);
   }
 
   if (errors.length > 0) {
@@ -97,36 +126,40 @@ const completeOnboarding = asyncHandler(async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // Update user table with full_name and username
+    await client.query(
+      `UPDATE users
+       SET full_name = $1, username = $2, profile_completed = TRUE, updated_at = NOW()
+       WHERE id = $3`,
+      [full_name.trim(), username.trim().toLowerCase(), userId]
+    );
+
     // Create trader profile
     const profileResult = await client.query(
       `INSERT INTO trader_profiles (
         user_id,
-        display_name,
-        trading_interests,
-        preferred_languages,
-        experience_level,
-        receive_notifications,
+        age,
+        trading_experience,
+        portfolio_size,
+        trading_style,
+        risk_tolerance,
+        interests,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
       RETURNING *`,
       [
         userId,
-        display_name?.trim() || null,
-        trading_interests,
-        preferred_languages,
-        experience_level,
-        receive_notifications
+        age,
+        trading_experience,
+        portfolio_size,
+        trading_style,
+        risk_tolerance,
+        interests
       ]
     );
 
     const profile = profileResult.rows[0];
-
-    // Update user table - SET profile_completed = TRUE
-    await client.query(
-      `UPDATE users SET profile_completed = TRUE, updated_at = NOW() WHERE id = $1`,
-      [userId]
-    );
 
     await client.query('COMMIT');
 
@@ -136,11 +169,14 @@ const completeOnboarding = asyncHandler(async (req, res) => {
       data: {
         profile: {
           id: profile.id,
-          display_name: profile.display_name,
-          trading_interests: profile.trading_interests,
-          preferred_languages: profile.preferred_languages,
-          experience_level: profile.experience_level,
-          receive_notifications: profile.receive_notifications,
+          full_name: full_name,
+          username: username,
+          age: profile.age,
+          trading_experience: profile.trading_experience,
+          portfolio_size: profile.portfolio_size,
+          trading_style: profile.trading_style,
+          risk_tolerance: profile.risk_tolerance,
+          interests: profile.interests,
           created_at: profile.created_at
         }
       }

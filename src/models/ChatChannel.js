@@ -545,6 +545,104 @@ const createDefaultChannels = async (analystId) => {
   }
 };
 
+/**
+ * Get all community channels (global, not tied to any analyst)
+ * @returns {Promise<Array>} - List of community channels
+ */
+const getCommunityChannels = async () => {
+  try {
+    const queryText = `
+      SELECT
+        id,
+        channel_name,
+        channel_description,
+        channel_type,
+        icon,
+        is_read_only,
+        message_rate_limit,
+        is_active,
+        is_archived,
+        total_messages,
+        active_members_count,
+        last_message_at,
+        created_at
+      FROM chat_channels
+      WHERE is_community_channel = TRUE
+        AND is_active = TRUE
+        AND deleted_at IS NULL
+      ORDER BY
+        CASE channel_type
+          WHEN 'general' THEN 1
+          WHEN 'trading' THEN 2
+          WHEN 'ideas' THEN 3
+          ELSE 4
+        END,
+        created_at ASC
+    `;
+
+    const result = await query(queryText);
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching community channels:', error);
+    throw new AppError('Failed to fetch community channels', 500);
+  }
+};
+
+/**
+ * Check if user has access to a community channel (all traders do)
+ * @param {string} channelId - Channel ID
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} - Access status
+ */
+const checkCommunityChannelAccess = async (channelId, userId) => {
+  try {
+    const queryText = `
+      SELECT
+        id,
+        channel_type,
+        is_read_only,
+        is_active,
+        is_archived,
+        is_community_channel
+      FROM chat_channels
+      WHERE id = $1
+        AND is_community_channel = TRUE
+        AND deleted_at IS NULL
+    `;
+
+    const result = await query(queryText, [channelId]);
+
+    if (result.rows.length === 0) {
+      throw new AppError('Community channel not found', 404);
+    }
+
+    const channel = result.rows[0];
+
+    // If channel is not active or archived, no access
+    if (!channel.is_active || channel.is_archived) {
+      return {
+        has_access: false,
+        can_post: false,
+        reason: channel.is_archived ? 'Channel is archived' : 'Channel is not active'
+      };
+    }
+
+    // All authenticated traders have access to community channels
+    return {
+      has_access: true,
+      can_post: !channel.is_read_only && !channel.is_archived,
+      channel_type: channel.channel_type,
+      is_read_only: channel.is_read_only,
+      is_community: true
+    };
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    console.error('Error checking community channel access:', error);
+    throw new AppError('Failed to check channel access', 500);
+  }
+};
+
 module.exports = {
   createChannel,
   getAnalystChannels,
@@ -555,5 +653,7 @@ module.exports = {
   updateChannelStats,
   updateActiveMembersCount,
   getChannelMembers,
-  createDefaultChannels
+  createDefaultChannels,
+  getCommunityChannels,
+  checkCommunityChannelAccess
 };

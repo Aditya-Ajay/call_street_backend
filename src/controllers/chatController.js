@@ -602,6 +602,97 @@ const createDefaultChannels = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/chat/community/channels
+ * @desc    Get all community channels (global channels for all traders)
+ * @access  Private (authenticated users only)
+ */
+const getCommunityChannels = asyncHandler(async (req, res) => {
+  const channels = await ChatChannel.getCommunityChannels();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      channels,
+      count: channels.length
+    }
+  });
+});
+
+/**
+ * @route   GET /api/chat/community/:channelId
+ * @desc    Get a single community channel by ID
+ * @access  Private (authenticated users only)
+ */
+const getCommunityChannelById = asyncHandler(async (req, res) => {
+  const { channelId } = req.params;
+  const userId = req.user.id;
+
+  // Get channel
+  const channel = await ChatChannel.getChannelById(channelId);
+
+  // Verify it's a community channel
+  if (!channel.is_community_channel) {
+    throw new AppError('This is not a community channel', 400);
+  }
+
+  // Check user access
+  const access = await ChatChannel.checkCommunityChannelAccess(channelId, userId);
+
+  if (!access.has_access) {
+    throw new AppError(access.reason || 'You do not have access to this channel', 403);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      channel,
+      access: {
+        can_post: access.can_post,
+        is_community: access.is_community
+      }
+    }
+  });
+});
+
+/**
+ * @route   GET /api/chat/community/:channelId/messages
+ * @desc    Get message history for a community channel (paginated)
+ * @access  Private (authenticated users only)
+ */
+const getCommunityChannelMessages = asyncHandler(async (req, res) => {
+  const { channelId } = req.params;
+  const userId = req.user.id;
+
+  // Parse pagination params
+  const limit = parseInt(req.query.limit, 10) || PAGINATION.DEFAULT_LIMIT;
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const beforeMessageId = req.query.before || null;
+
+  // Check user access to community channel
+  const access = await ChatChannel.checkCommunityChannelAccess(channelId, userId);
+
+  if (!access.has_access) {
+    throw new AppError('You do not have access to this channel', 403);
+  }
+
+  // Get messages
+  const result = await ChatMessage.getChannelMessages(
+    channelId,
+    Math.min(limit, PAGINATION.MAX_LIMIT),
+    offset,
+    beforeMessageId
+  );
+
+  res.status(200).json({
+    success: true,
+    data: {
+      messages: result.messages,
+      pagination: result.pagination
+    }
+  });
+});
+
 module.exports = {
   getAnalystChannels,
   getChannelById,
@@ -622,5 +713,8 @@ module.exports = {
   getFlaggedMessages,
   getChannelStats,
   getUserMessages,
-  createDefaultChannels
+  createDefaultChannels,
+  getCommunityChannels,
+  getCommunityChannelById,
+  getCommunityChannelMessages
 };

@@ -109,12 +109,22 @@ const initializeChatSocket = (io) => {
           return;
         }
 
+        // Get channel to check if it's a community channel
+        const channel = await ChatChannel.getChannelById(channelId);
+
         // Check if user has access to this channel
-        const access = await ChatChannel.checkUserAccess(
-          channelId,
-          socket.userId,
-          socket.userRole
-        );
+        let access;
+        if (channel.is_community_channel) {
+          // Community channels - all authenticated users have access
+          access = await ChatChannel.checkCommunityChannelAccess(channelId, socket.userId);
+        } else {
+          // Analyst-specific channels
+          access = await ChatChannel.checkUserAccess(
+            channelId,
+            socket.userId,
+            socket.userRole
+          );
+        }
 
         if (!access.has_access) {
           socket.emit(SOCKET_EVENTS.ERROR, {
@@ -152,9 +162,6 @@ const initializeChatSocket = (io) => {
         // Update active members count
         const onlineCount = channelUsers.get(channelId).size;
         await ChatChannel.updateActiveMembersCount(channelId, onlineCount);
-
-        // Get channel info
-        const channel = await ChatChannel.getChannelById(channelId);
 
         // Load last 100 messages
         const messageHistory = await ChatMessage.getChannelMessages(channelId, 100, 0);
